@@ -1,0 +1,17 @@
+# Dependencias
+node_modules/
+
+# Variables de entorno (NUNCA se suben al repo)
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Sistema operativo / editor
+.DS_Store
+.vscode/
+.idea/
