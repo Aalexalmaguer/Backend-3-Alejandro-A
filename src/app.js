@@ -1,6 +1,7 @@
 import express from 'express';
 import apiRouter from './routes/index.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
+import { httpLogger } from './middlewares/httpLogger.js';
 
 /**
  * Construye y configura la aplicación Express.
@@ -11,6 +12,9 @@ export const createApp = () => {
 
   // Middlewares base
   app.use(express.json());
+
+  // Logging de cada petición HTTP (nivel 'http')
+  app.use(httpLogger);
 
   // Healthcheck simple
   app.get('/health', (req, res) => {

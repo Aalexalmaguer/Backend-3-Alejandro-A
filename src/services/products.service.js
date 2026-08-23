@@ -1,6 +1,7 @@
 import { productsRepository } from '../repositories/products.repository.js';
 import { PRODUCT_STATUS } from '../constants/index.js';
 import { createError } from '../utils/errors/index.js';
+import { logger } from '../config/logger.js';
 
 /**
  * Service de Productos: concentra la LÓGICA DE NEGOCIO.
@@ -47,7 +48,9 @@ export const productsService = {
       status: resolveStatus(stock)
     };
 
-    return productsRepository.create(product);
+    const created = await productsRepository.create(product);
+    logger.info(`Producto creado: "${created.name}" (estado: ${created.status})`);
+    return created;
   },
 
   updateStock: async (id, stock) => {

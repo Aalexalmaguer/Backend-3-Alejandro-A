@@ -1,4 +1,5 @@
 import { AppError, createError, ERRORS } from '../utils/errors/index.js';
+import { logger } from '../config/logger.js';
 
 /**
  * Normaliza cualquier error a un AppError.
@@ -39,9 +40,14 @@ const normalizeError = (err) => {
 export const errorHandler = (err, req, res, next) => {
   const error = normalizeError(err);
 
-  // Solo logueamos en el servidor los errores inesperados (5xx).
+  // Integración con el logger (M4):
+  //  - errores esperados / de negocio (4xx) → advertencia
+  //  - errores inesperados del servidor (5xx) → error
+  const logMessage = `${req.method} ${req.originalUrl} → ${error.code}: ${error.message}`;
   if (error.statusCode >= 500) {
-    console.error('[error]', err);
+    logger.error(logMessage);
+  } else {
+    logger.warning(logMessage);
   }
 
   res.status(error.statusCode).json({

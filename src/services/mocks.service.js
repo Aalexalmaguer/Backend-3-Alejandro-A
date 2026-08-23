@@ -9,6 +9,7 @@ import {
 import { generateMockOrders } from '../mocks/orders.mock.js';
 import { generateMockDeliveries } from '../mocks/deliveries.mock.js';
 import { createError } from '../utils/errors/index.js';
+import { logger } from '../config/logger.js';
 
 /**
  * Service de Mocking: concentra la lógica de generación y carga de datos.
@@ -57,7 +58,7 @@ const safeLoad = async (operation) => {
   try {
     return await operation();
   } catch (err) {
-    console.error('[mocks] fallo al cargar datos de prueba:', err.message);
+    logger.error(`Fallo al cargar datos de prueba en MongoDB: ${err.message}`);
     throw createError('MOCK_LOAD_FAILED');
   }
 };
@@ -112,6 +113,7 @@ export const mocksService = {
       );
     }
     const qty = parseQty(qtyRaw);
+    logger.debug(`Mocks (preview): generando ${qty} "${key}" sin guardar`);
 
     switch (key) {
       case 'usuarios':
@@ -172,6 +174,7 @@ export const mocksService = {
         inserted = [];
     }
 
+    logger.info(`Mocks: insertados ${inserted.length} registros en "${key}"`);
     return { insertados: inserted.length, coleccion: key };
   },
 
@@ -226,13 +229,16 @@ export const mocksService = {
       );
     }
 
-    return {
-      insertados: {
-        usuarios: createdUsers.length,
-        repartidores: createdDrivers.length,
-        pedidos: createdOrders.length,
-        entregas: createdDeliveries.length
-      }
+    const resumen = {
+      usuarios: createdUsers.length,
+      repartidores: createdDrivers.length,
+      pedidos: createdOrders.length,
+      entregas: createdDeliveries.length
     };
+    logger.info(
+      `Mocks (generateData): ${resumen.usuarios} usuarios, ${resumen.repartidores} repartidores, ` +
+        `${resumen.pedidos} pedidos, ${resumen.entregas} entregas`
+    );
+    return { insertados: resumen };
   }
 };

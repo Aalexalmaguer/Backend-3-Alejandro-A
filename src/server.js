@@ -1,5 +1,6 @@
 import { config } from './config/index.js';
 import { connectDB } from './config/database.js';
+import { logger } from './config/logger.js';
 import { createApp } from './app.js';
 
 /**
@@ -11,14 +12,20 @@ import { createApp } from './app.js';
  *  3. Recién entonces escuchar peticiones HTTP.
  */
 const startServer = async () => {
-  await connectDB();
+  try {
+    await connectDB();
 
-  const app = createApp();
+    const app = createApp();
 
-  app.listen(config.port, () => {
-    console.log(`[server] ShipNow escuchando en http://localhost:${config.port}`);
-    console.log(`[server] Entorno: ${config.nodeEnv}`);
-  });
+    app.listen(config.port, () => {
+      logger.info(`Servidor ShipNow escuchando en el puerto ${config.port}`);
+      logger.info(`Entorno: ${config.nodeEnv}`);
+    });
+  } catch (error) {
+    // Falla crítica durante el arranque: se registra como fatal.
+    logger.fatal(`No se pudo iniciar el servidor: ${error.message}`);
+    process.exit(1);
+  }
 };
 
 startServer();

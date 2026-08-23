@@ -1,6 +1,7 @@
 import { usersRepository } from '../repositories/users.repository.js';
 import { USER_ROLES, USER_ROLE_VALUES } from '../constants/index.js';
 import { createError } from '../utils/errors/index.js';
+import { logger } from '../config/logger.js';
 
 /**
  * Service de Usuarios: concentra la LÓGICA DE NEGOCIO.
@@ -46,7 +47,9 @@ export const usersService = {
       throw createError('DUPLICATE_EMAIL');
     }
 
-    return usersRepository.create({ ...data, role });
+    const created = await usersRepository.create({ ...data, role });
+    logger.info(`Usuario creado: ${created.email} (rol: ${created.role})`);
+    return created;
   },
 
   deleteUser: async (id) => {

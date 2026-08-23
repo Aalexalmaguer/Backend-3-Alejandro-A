@@ -13,6 +13,9 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 >   prueba de **usuarios, repartidores, pedidos y entregas**.
 > - **M3** — **manejo profesional de errores**: diccionario de errores, errores
 >   personalizados y un middleware global que unifica todas las respuestas de error.
+> - **M4** — **logging y monitoreo básico** con Winston: logger centralizado,
+>   niveles de log, integración con el manejo de errores, persistencia en archivos
+>   con rotación y un endpoint de prueba.
 
 ---
 
@@ -40,15 +43,18 @@ Model / MongoDB
 src/
 ├── config/
 │   ├── index.js          # dotenv + validación de variables de entorno
-│   └── database.js       # conexión centralizada a MongoDB
+│   ├── database.js       # conexión centralizada a MongoDB
+│   └── logger.js         # logger centralizado (Winston) + rotación de archivos
 ├── constants/
 │   └── index.js          # roles, estados y prioridades (Object.freeze) — sin strings mágicos
 ├── controllers/
 │   ├── products.controller.js
 │   ├── users.controller.js
-│   └── mocks.controller.js
+│   ├── mocks.controller.js
+│   └── logs.controller.js    # endpoint de prueba del logger
 ├── middlewares/
-│   └── errorHandler.js   # middleware global de errores + ruta no encontrada
+│   ├── errorHandler.js   # middleware global de errores + ruta no encontrada
+│   └── httpLogger.js     # loguea cada petición HTTP (nivel http)
 ├── mocks/                # generadores de datos de prueba (funciones puras, sin DB)
 │   ├── helpers.js
 │   ├── users.mock.js
@@ -68,7 +74,8 @@ src/
 │   ├── index.js
 │   ├── products.router.js
 │   ├── users.router.js
-│   └── mocks.router.js
+│   ├── mocks.router.js
+│   └── logs.router.js
 ├── services/
 │   ├── products.service.js
 │   ├── users.service.js
@@ -289,6 +296,65 @@ curl -i  "http://localhost:8080/api/mocks/coleccionRara?qty=2"   # 400 INVALID_C
 
 > Si MongoDB falla durante una carga de mocks, la API no se cae: responde
 > `500 MOCK_LOAD_FAILED` con el mismo formato uniforme.
+
+---
+
+## Logging y monitoreo (M4)
+
+El proyecto usa **Winston** como logger **centralizado** (`src/config/logger.js`).
+Reemplaza a `console.log`: cualquier módulo importa el mismo `logger` y registra
+eventos con un nivel de importancia. Cada registro tiene el formato
+**`timestamp [nivel]  mensaje`**.
+
+### Niveles de log
+
+De más grave a menos grave: `fatal` → `error` → `warning` → `info` → `http` → `debug`.
+
+| Nivel     | Se usa para… |
+| --------- | ------------ |
+| `fatal`   | Fallas críticas de arranque/configuración (ej. no conecta a MongoDB) |
+| `error`   | Errores inesperados del servidor (5xx), fallo de carga de mocks |
+| `warning` | Errores esperados / de negocio (4xx): recurso no encontrado, validación |
+| `info`    | Eventos normales: servidor iniciado, DB conectada, entidad/mock creados |
+| `http`    | Cada petición HTTP recibida |
+| `debug`   | Detalle de desarrollo (ej. preview de mocks) |
+
+### Comportamiento por entorno
+
+Se apoya en `NODE_ENV` (M1):
+
+- **development** → registra desde `debug` (muestra todo).
+- **production** → registra desde `info` (oculta `debug` y `http`).
+
+### Persistencia y rotación
+
+Los logs se guardan en la carpeta **`logs/`** con **rotación diaria** (un archivo
+por día, máx. 5 MB, se conservan 14 días, comprimidos):
+
+- `logs/combined-YYYY-MM-DD.log` → todos los niveles según el entorno.
+- `logs/error-YYYY-MM-DD.log` → **solo `error` y `fatal`** (nunca `info` ni `debug`).
+
+> La carpeta `logs/` y los `*.log` están en `.gitignore`: los archivos generados
+> por la aplicación **no se suben** al repositorio. La carpeta se crea sola al
+> arrancar.
+
+### Integración con el manejo de errores
+
+El logger **no reemplaza** al manejo de errores del M3, lo **complementa**: el
+middleware global sigue construyendo la respuesta uniforme al cliente y, además,
+registra cada error (4xx como `warning`, 5xx como `error`).
+
+### Endpoint de prueba
+
+Para verificar que todos los niveles funcionan:
+
+```bash
+# GET /api/logs/test → dispara un log de cada nivel (debug, http, info, warning, error, fatal)
+curl http://localhost:8080/api/logs/test
+```
+
+Después de llamarlo, revisá la **consola** (con colores) y la carpeta **`logs/`**:
+`combined-*.log` tendrá los 6 niveles y `error-*.log` solo `error` y `fatal`.
 
 ---
 

@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { config } from './index.js';
+import { logger } from './logger.js';
 
 /**
  * Conexión centralizada a MongoDB.
@@ -9,10 +10,10 @@ import { config } from './index.js';
 export const connectDB = async () => {
   try {
     await mongoose.connect(config.mongoUri);
-    console.log('[db] Conectado a MongoDB');
+    logger.info('Conexión a MongoDB establecida');
   } catch (error) {
-    console.error('[db] No se pudo conectar a MongoDB:', error.message);
-    // Sin base de datos la API no puede operar: cortamos el proceso.
+    // Sin base de datos la API no puede operar: falla crítica.
+    logger.fatal(`Error al conectar con MongoDB: ${error.message}`);
     process.exit(1);
   }
 };
