@@ -33,6 +33,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: USER_ROLE_VALUES,
       default: USER_ROLES.USER
+    },
+    // Solo aplica a repartidores (role = driver): indica si puede tomar entregas.
+    isAvailable: {
+      type: Boolean
     }
   },
   { timestamps: true }

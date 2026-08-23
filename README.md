@@ -5,10 +5,12 @@ API base de la plataforma de logística **ShipNow**, refactorizada a una
 un sistema de **configuración de entorno validada** y **constantes de dominio**.
 
 Este repositorio es la base del proyecto para Backend III y se irá ampliando en
-las próximas entregas (mocking, manejo de errores, logger, documentación,
-testing y Docker).
+las próximas entregas (manejo de errores, logger, documentación, testing y Docker).
 
-> Estado actual: refactorización de las entidades **Products** y **Users**.
+> Estado actual:
+> - **M1** — arquitectura por capas para **Products** y **Users** + config de entorno validada.
+> - **M2** — sistema de **mocking** (`/api/mocks`) para generar y cargar datos de
+>   prueba de **usuarios, repartidores, pedidos y entregas**.
 
 ---
 
@@ -38,25 +40,37 @@ src/
 │   ├── index.js          # dotenv + validación de variables de entorno
 │   └── database.js       # conexión centralizada a MongoDB
 ├── constants/
-│   └── index.js          # roles y estados (Object.freeze) — sin strings mágicos
+│   └── index.js          # roles, estados y prioridades (Object.freeze) — sin strings mágicos
 ├── controllers/
 │   ├── products.controller.js
-│   └── users.controller.js
+│   ├── users.controller.js
+│   └── mocks.controller.js
 ├── middlewares/
 │   └── errorHandler.js   # manejo centralizado de errores
+├── mocks/                # generadores de datos de prueba (funciones puras, sin DB)
+│   ├── helpers.js
+│   ├── users.mock.js
+│   ├── orders.mock.js
+│   └── deliveries.mock.js
 ├── models/
 │   ├── product.model.js  # solo el esquema de Mongoose
-│   └── user.model.js
+│   ├── user.model.js
+│   ├── order.model.js    # pedido (ref a User)
+│   └── delivery.model.js # entrega (ref a Order y a User/driver)
 ├── repositories/
 │   ├── products.repository.js
-│   └── users.repository.js
+│   ├── users.repository.js
+│   ├── orders.repository.js
+│   └── deliveries.repository.js
 ├── routes/
 │   ├── index.js
 │   ├── products.router.js
-│   └── users.router.js
+│   ├── users.router.js
+│   └── mocks.router.js
 ├── services/
 │   ├── products.service.js
-│   └── users.service.js
+│   ├── users.service.js
+│   └── mocks.service.js  # generación + carga controlada, respeta relaciones
 ├── utils/
 │   └── AppError.js
 ├── app.js                # construye la app Express
@@ -143,6 +157,58 @@ curl -X POST http://localhost:8080/api/products \
 | GET    | `/users/:id`    | Obtiene un usuario por id                          |
 | POST   | `/users`        | Crea un usuario (valida rol y email único)         |
 | DELETE | `/users/:id`    | Elimina un usuario                                 |
+
+### Mocking (`/api/mocks`) — M2
+
+Router dedicado a **datos de prueba**. Sirve para probar la API sin cargar
+datos a mano. La lógica de generación vive en `src/mocks/` y en
+`mocks.service.js`; el router solo enruta. Todos los datos generados respetan
+los modelos reales y usan las **constantes del dominio** (roles, estados y
+prioridades), y las relaciones **pedido ↔ usuario** y **entrega ↔ pedido ↔
+repartidor** se mantienen coherentes.
+
+| Método | Ruta                          | Guarda en DB | Descripción |
+| ------ | ----------------------------- | ------------ | ----------- |
+| GET    | `/mocks/:collection?qty=N`    | ❌ No        | Devuelve N datos simulados. `:collection` = `users` \| `drivers` \| `orders` \| `deliveries` |
+| POST   | `/mocks/seed?qty=N&collection=users` | ✅ Sí | Inserta N registros de una colección. `collection` por defecto `users`. Responde `{ insertados, coleccion }` |
+| POST   | `/mocks/generateData`         | ✅ Sí        | Carga relacional completa. Body: `{ "users": 5, "drivers": 2, "orders": 4, "deliveries": 3 }` |
+
+Notas:
+
+- `qty` debe ser un entero entre 1 y 100 (tope de seguridad para no llenar la base).
+- `seed` de `pedidos`/`entregas` **crea automáticamente** los datos relacionados
+  que falten (clientes, repartidores, pedidos) para que las relaciones sean válidas.
+
+**Ejemplos**
+
+Datos simulados sin guardar:
+
+```bash
+# GET /api/mocks/users?qty=2  →  { "status": "success", "payload": [ ...2 usuarios... ] }
+curl "http://localhost:8080/api/mocks/users?qty=2"
+```
+
+Insertar en MongoDB de forma controlada:
+
+```bash
+# POST /api/mocks/seed?qty=10  →  { "insertados": 10, "coleccion": "usuarios" }
+curl -X POST "http://localhost:8080/api/mocks/seed?qty=10"
+
+# Sembrar pedidos (crea clientes si no existen):
+curl -X POST "http://localhost:8080/api/mocks/seed?qty=5&collection=pedidos"
+```
+
+Carga relacional completa (usuarios → pedidos → entregas):
+
+```bash
+curl -X POST "http://localhost:8080/api/mocks/generateData" \
+  -H "Content-Type: application/json" \
+  -d '{ "users": 5, "drivers": 2, "orders": 4, "deliveries": 3 }'
+# → { "status": "success", "insertados": { "usuarios": 5, "repartidores": 2, "pedidos": 4, "entregas": 3 } }
+```
+
+> Los endpoints de mocking son una herramienta de **desarrollo/testing**. En un
+> entorno real conviene protegerlos o desactivarlos en producción.
 
 ---
 

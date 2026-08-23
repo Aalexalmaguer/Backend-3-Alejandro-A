@@ -32,6 +32,15 @@ export const usersRepository = {
     return user;
   },
 
+  // Inserción masiva para la carga de datos de prueba (mocking).
+  insertMany: async (docs) => {
+    const created = await UserModel.insertMany(docs);
+    return created.map((doc) => {
+      const { password, __v, ...user } = doc.toObject();
+      return user;
+    });
+  },
+
   update: async (id, changes) => {
     return UserModel.findByIdAndUpdate(id, changes, {
       new: true,
