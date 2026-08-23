@@ -8,7 +8,7 @@ import {
 } from '../mocks/users.mock.js';
 import { generateMockOrders } from '../mocks/orders.mock.js';
 import { generateMockDeliveries } from '../mocks/deliveries.mock.js';
-import { AppError } from '../utils/AppError.js';
+import { createError } from '../utils/errors/index.js';
 
 /**
  * Service de Mocking: concentra la lógica de generación y carga de datos.
@@ -34,24 +34,41 @@ const COLLECTIONS = {
 
 const parseQty = (value, fallback = 10) => {
   const qty = Number(value ?? fallback);
-  if (!Number.isInteger(qty) || qty <= 0) {
-    throw new AppError('"qty" debe ser un número entero mayor a 0', 400);
+  if (!Number.isInteger(qty)) {
+    throw createError('INVALID_MOCK_QUANTITY', '"qty" debe ser un número entero');
+  }
+  if (qty <= 0) {
+    // Cubre cantidad inválida y valores negativos.
+    throw createError('INVALID_MOCK_QUANTITY', '"qty" debe ser mayor a 0 (no se aceptan 0 ni negativos)');
   }
   if (qty > MAX_MOCK_ITEMS) {
-    throw new AppError(`"qty" no puede superar ${MAX_MOCK_ITEMS}`, 400);
+    throw createError('INVALID_MOCK_QUANTITY', `"qty" no puede superar ${MAX_MOCK_ITEMS}`);
   }
   return qty;
 };
 
 const idsOf = (docs) => docs.map((d) => d._id);
 
+/**
+ * Envuelve una inserción en la base para responder de forma controlada si
+ * MongoDB falla durante la carga de datos de prueba (MOCK_LOAD_FAILED).
+ */
+const safeLoad = async (operation) => {
+  try {
+    return await operation();
+  } catch (err) {
+    console.error('[mocks] fallo al cargar datos de prueba:', err.message);
+    throw createError('MOCK_LOAD_FAILED');
+  }
+};
+
 // --- Prerrequisitos: garantizan que existan datos relacionados ---------------
 
 const ensureCustomers = async (min) => {
   let customers = await usersRepository.getAll({ role: USER_ROLES.USER });
   if (customers.length < min) {
-    const created = await usersRepository.insertMany(
-      generateMockUsers(min - customers.length, USER_ROLES.USER)
+    const created = await safeLoad(() =>
+      usersRepository.insertMany(generateMockUsers(min - customers.length, USER_ROLES.USER))
     );
     customers = customers.concat(created);
   }
@@ -61,8 +78,8 @@ const ensureCustomers = async (min) => {
 const ensureDrivers = async (min) => {
   let drivers = await usersRepository.getAll({ role: USER_ROLES.DRIVER });
   if (drivers.length < min) {
-    const created = await usersRepository.insertMany(
-      generateMockDrivers(min - drivers.length)
+    const created = await safeLoad(() =>
+      usersRepository.insertMany(generateMockDrivers(min - drivers.length))
     );
     drivers = drivers.concat(created);
   }
@@ -73,8 +90,8 @@ const ensureOrders = async (min) => {
   let orders = await ordersRepository.getAll();
   if (orders.length < min) {
     const customers = await ensureCustomers(Math.min(min, 5));
-    const created = await ordersRepository.insertMany(
-      generateMockOrders(min - orders.length, idsOf(customers))
+    const created = await safeLoad(() =>
+      ordersRepository.insertMany(generateMockOrders(min - orders.length, idsOf(customers)))
     );
     orders = orders.concat(created);
   }
@@ -89,9 +106,9 @@ export const mocksService = {
   preview: (collection = 'users', qtyRaw) => {
     const key = COLLECTIONS[String(collection).toLowerCase()];
     if (!key) {
-      throw new AppError(
-        `Colección inválida. Opciones: ${Object.keys(COLLECTIONS).join(', ')}`,
-        400
+      throw createError(
+        'INVALID_COLLECTION',
+        `Colección inválida. Opciones: ${Object.keys(COLLECTIONS).join(', ')}`
       );
     }
     const qty = parseQty(qtyRaw);
@@ -117,9 +134,9 @@ export const mocksService = {
   seed: async (collection = 'users', qtyRaw) => {
     const key = COLLECTIONS[String(collection).toLowerCase()];
     if (!key) {
-      throw new AppError(
-        `Colección inválida. Opciones: ${Object.keys(COLLECTIONS).join(', ')}`,
-        400
+      throw createError(
+        'INVALID_COLLECTION',
+        `Colección inválida. Opciones: ${Object.keys(COLLECTIONS).join(', ')}`
       );
     }
     const qty = parseQty(qtyRaw);
@@ -127,16 +144,16 @@ export const mocksService = {
     let inserted;
     switch (key) {
       case 'usuarios':
-        inserted = await usersRepository.insertMany(generateMockUsers(qty));
+        inserted = await safeLoad(() => usersRepository.insertMany(generateMockUsers(qty)));
         break;
       case 'repartidores':
-        inserted = await usersRepository.insertMany(generateMockDrivers(qty));
+        inserted = await safeLoad(() => usersRepository.insertMany(generateMockDrivers(qty)));
         break;
       case 'pedidos': {
         // Relación pedido ↔ usuario: aseguramos clientes antes de crear pedidos.
         const customers = await ensureCustomers(Math.min(qty, 5));
-        inserted = await ordersRepository.insertMany(
-          generateMockOrders(qty, idsOf(customers))
+        inserted = await safeLoad(() =>
+          ordersRepository.insertMany(generateMockOrders(qty, idsOf(customers)))
         );
         break;
       }
@@ -146,8 +163,8 @@ export const mocksService = {
           ensureOrders(Math.min(qty, 5)),
           ensureDrivers(Math.min(qty, 3))
         ]);
-        inserted = await deliveriesRepository.insertMany(
-          generateMockDeliveries(qty, idsOf(orders), idsOf(drivers))
+        inserted = await safeLoad(() =>
+          deliveriesRepository.insertMany(generateMockDeliveries(qty, idsOf(orders), idsOf(drivers)))
         );
         break;
       }
@@ -170,18 +187,18 @@ export const mocksService = {
     const delQty = deliveries ? parseQty(deliveries) : 0;
 
     if (uQty + dQty + oQty + delQty === 0) {
-      throw new AppError(
-        'Indicá al menos una cantidad: users, drivers, orders o deliveries',
-        400
+      throw createError(
+        'INVALID_MOCK_QUANTITY',
+        'Indicá al menos una cantidad: users, drivers, orders o deliveries'
       );
     }
 
     // 1) Clientes y repartidores
     const createdUsers = uQty
-      ? await usersRepository.insertMany(generateMockUsers(uQty, USER_ROLES.USER))
+      ? await safeLoad(() => usersRepository.insertMany(generateMockUsers(uQty, USER_ROLES.USER)))
       : [];
     const createdDrivers = dQty
-      ? await usersRepository.insertMany(generateMockDrivers(dQty))
+      ? await safeLoad(() => usersRepository.insertMany(generateMockDrivers(dQty)))
       : [];
 
     // 2) Pedidos ligados a clientes existentes (o recién creados)
@@ -190,8 +207,8 @@ export const mocksService = {
       const customers = createdUsers.length
         ? createdUsers
         : await ensureCustomers(Math.min(oQty, 5));
-      createdOrders = await ordersRepository.insertMany(
-        generateMockOrders(oQty, idsOf(customers))
+      createdOrders = await safeLoad(() =>
+        ordersRepository.insertMany(generateMockOrders(oQty, idsOf(customers)))
       );
     }
 
@@ -204,8 +221,8 @@ export const mocksService = {
       const driverPool = createdDrivers.length
         ? createdDrivers
         : await ensureDrivers(Math.min(delQty, 3));
-      createdDeliveries = await deliveriesRepository.insertMany(
-        generateMockDeliveries(delQty, idsOf(orderPool), idsOf(driverPool))
+      createdDeliveries = await safeLoad(() =>
+        deliveriesRepository.insertMany(generateMockDeliveries(delQty, idsOf(orderPool), idsOf(driverPool)))
       );
     }
 

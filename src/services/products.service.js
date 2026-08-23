@@ -1,6 +1,6 @@
 import { productsRepository } from '../repositories/products.repository.js';
 import { PRODUCT_STATUS } from '../constants/index.js';
-import { AppError } from '../utils/AppError.js';
+import { createError } from '../utils/errors/index.js';
 
 /**
  * Service de Productos: concentra la LÓGICA DE NEGOCIO.
@@ -26,7 +26,7 @@ export const productsService = {
   getProductById: async (id) => {
     const product = await productsRepository.getById(id);
     if (!product) {
-      throw new AppError('Producto no encontrado', 404);
+      throw createError('PRODUCT_NOT_FOUND');
     }
     return product;
   },
@@ -35,10 +35,10 @@ export const productsService = {
     const { name, price, stock = 0 } = data;
 
     if (!name || price === undefined) {
-      throw new AppError('El producto requiere al menos "name" y "price"', 400);
+      throw createError('INVALID_PRODUCT_DATA', 'El producto requiere al menos "name" y "price"');
     }
     if (price < 0 || stock < 0) {
-      throw new AppError('El precio y el stock no pueden ser negativos', 400);
+      throw createError('INVALID_PRODUCT_DATA', 'El precio y el stock no pueden ser negativos');
     }
 
     // El estado no lo decide el cliente: lo deriva el negocio a partir del stock.
@@ -52,7 +52,7 @@ export const productsService = {
 
   updateStock: async (id, stock) => {
     if (stock === undefined || stock < 0) {
-      throw new AppError('El stock debe ser un número mayor o igual a 0', 400);
+      throw createError('INVALID_PRODUCT_DATA', 'El stock debe ser un número mayor o igual a 0');
     }
     await productsService.getProductById(id); // valida existencia (404 si no existe)
 

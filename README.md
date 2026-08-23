@@ -11,6 +11,8 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 > - **M1** — arquitectura por capas para **Products** y **Users** + config de entorno validada.
 > - **M2** — sistema de **mocking** (`/api/mocks`) para generar y cargar datos de
 >   prueba de **usuarios, repartidores, pedidos y entregas**.
+> - **M3** — **manejo profesional de errores**: diccionario de errores, errores
+>   personalizados y un middleware global que unifica todas las respuestas de error.
 
 ---
 
@@ -46,7 +48,7 @@ src/
 │   ├── users.controller.js
 │   └── mocks.controller.js
 ├── middlewares/
-│   └── errorHandler.js   # manejo centralizado de errores
+│   └── errorHandler.js   # middleware global de errores + ruta no encontrada
 ├── mocks/                # generadores de datos de prueba (funciones puras, sin DB)
 │   ├── helpers.js
 │   ├── users.mock.js
@@ -72,7 +74,10 @@ src/
 │   ├── users.service.js
 │   └── mocks.service.js  # generación + carga controlada, respeta relaciones
 ├── utils/
-│   └── AppError.js
+│   └── errors/
+│       ├── errorDictionary.js  # diccionario: code + status + message
+│       ├── AppError.js         # error personalizado + factory createError
+│       └── index.js
 ├── app.js                # construye la app Express
 └── server.js             # arranque: valida config → conecta DB → escucha
 ```
@@ -209,6 +214,81 @@ curl -X POST "http://localhost:8080/api/mocks/generateData" \
 
 > Los endpoints de mocking son una herramienta de **desarrollo/testing**. En un
 > entorno real conviene protegerlos o desactivarlos en producción.
+
+---
+
+## Manejo de errores (M3)
+
+Toda la API responde los errores con una **estructura única y predecible**.
+Ningún controller ni router arma respuestas de error a mano: las capas (sobre
+todo los **Services**) *lanzan* errores del dominio, y un **middleware global**
+es el único que los transforma en la respuesta HTTP final.
+
+Piezas:
+
+- **Diccionario de errores** (`src/utils/errors/errorDictionary.js`): un solo
+  lugar con cada caso del dominio y su `code`, `status` HTTP y `message`.
+- **Error personalizado** (`AppError` + factory `createError`): los services
+  lanzan, por ejemplo, `throw createError('USER_NOT_FOUND')`.
+- **Middleware global** (`src/middlewares/errorHandler.js`): normaliza cualquier
+  error —incluidos los de Mongoose (id inválido, validación, email duplicado)—
+  y construye la respuesta. También hay un handler de **ruta no encontrada**.
+
+### Estructura de la respuesta de error
+
+```json
+{
+  "status": "error",
+  "error": {
+    "code": "USER_NOT_FOUND",
+    "message": "Usuario no encontrado"
+  }
+}
+```
+
+Las respuestas exitosas mantienen su forma: `{ "status": "success", "payload": ... }`.
+
+### Diccionario (resumen)
+
+| code                    | HTTP | Cuándo ocurre                                   |
+| ----------------------- | ---- | ----------------------------------------------- |
+| `VALIDATION_ERROR`      | 400  | Faltan campos o son inválidos                   |
+| `INVALID_ID`            | 400  | Id con formato inválido (CastError de Mongo)    |
+| `INVALID_ROLE`          | 400  | Rol de usuario no permitido                     |
+| `INVALID_PRODUCT_DATA`  | 400  | Datos de producto inválidos (ej. precio negativo) |
+| `INVALID_MOCK_QUANTITY` | 400  | `qty` inválida, 0, negativa o mayor a 100       |
+| `INVALID_COLLECTION`    | 400  | Colección de mocks inexistente                  |
+| `USER_NOT_FOUND`        | 404  | Usuario inexistente                             |
+| `PRODUCT_NOT_FOUND`     | 404  | Producto inexistente                            |
+| `ORDER_NOT_FOUND`       | 404  | Pedido inexistente                              |
+| `ROUTE_NOT_FOUND`       | 404  | Ruta no registrada                              |
+| `DUPLICATE_EMAIL`       | 409  | Email de usuario repetido                       |
+| `MOCK_LOAD_FAILED`      | 500  | Falló la inserción de datos de prueba en MongoDB|
+| `INTERNAL_SERVER_ERROR` | 500  | Error inesperado no controlado                  |
+
+### Cómo probar los casos inválidos
+
+```bash
+# 404 uniforme
+curl -i http://localhost:8080/api/users/000000000000000000000000
+# → 404 { "status":"error", "error":{ "code":"USER_NOT_FOUND", ... } }
+
+# 400 validación
+curl -i -X POST http://localhost:8080/api/users \
+  -H "Content-Type: application/json" -d '{ "firstName": "Ana" }'
+# → 400 VALIDATION_ERROR
+
+# 409 email duplicado (crear dos veces el mismo email)
+# → 409 DUPLICATE_EMAIL
+
+# Mocks: cantidad inválida / negativa / excedida
+curl -i -X POST "http://localhost:8080/api/mocks/seed?qty=-5"    # 400 INVALID_MOCK_QUANTITY
+curl -i -X POST "http://localhost:8080/api/mocks/seed?qty=999"   # 400 INVALID_MOCK_QUANTITY
+curl -i  "http://localhost:8080/api/mocks/coleccionRara?qty=2"   # 400 INVALID_COLLECTION
+```
+
+> Si MongoDB falla durante una carga de mocks, la API no se cae: responde
+> `500 MOCK_LOAD_FAILED` con el mismo formato uniforme.
 
 ---
 

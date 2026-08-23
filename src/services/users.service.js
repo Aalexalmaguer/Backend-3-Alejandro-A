@@ -1,6 +1,6 @@
 import { usersRepository } from '../repositories/users.repository.js';
 import { USER_ROLES, USER_ROLE_VALUES } from '../constants/index.js';
-import { AppError } from '../utils/AppError.js';
+import { createError } from '../utils/errors/index.js';
 
 /**
  * Service de Usuarios: concentra la LÓGICA DE NEGOCIO.
@@ -16,7 +16,7 @@ export const usersService = {
   getUserById: async (id) => {
     const user = await usersRepository.getById(id);
     if (!user) {
-      throw new AppError('Usuario no encontrado', 404);
+      throw createError('USER_NOT_FOUND');
     }
     return user;
   },
@@ -25,25 +25,25 @@ export const usersService = {
     const { firstName, lastName, email, password } = data;
 
     if (!firstName || !lastName || !email || !password) {
-      throw new AppError(
-        'El usuario requiere "firstName", "lastName", "email" y "password"',
-        400
+      throw createError(
+        'VALIDATION_ERROR',
+        'El usuario requiere "firstName", "lastName", "email" y "password"'
       );
     }
 
     // Regla de negocio: el rol, si se envía, debe ser uno de los válidos.
     const role = data.role ?? USER_ROLES.USER;
     if (!USER_ROLE_VALUES.includes(role)) {
-      throw new AppError(
-        `Rol inválido. Valores permitidos: ${USER_ROLE_VALUES.join(', ')}`,
-        400
+      throw createError(
+        'INVALID_ROLE',
+        `Rol inválido. Valores permitidos: ${USER_ROLE_VALUES.join(', ')}`
       );
     }
 
     // Regla de negocio: no puede haber dos usuarios con el mismo email.
     const existing = await usersRepository.getByEmail(email);
     if (existing) {
-      throw new AppError('Ya existe un usuario con ese email', 409);
+      throw createError('DUPLICATE_EMAIL');
     }
 
     return usersRepository.create({ ...data, role });
