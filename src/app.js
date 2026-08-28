@@ -1,5 +1,7 @@
 import express from 'express';
+import swaggerUi from 'swagger-ui-express';
 import apiRouter from './routes/index.js';
+import { swaggerSpec } from './docs/swagger.js';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler.js';
 import { httpLogger } from './middlewares/httpLogger.js';
 
@@ -20,6 +22,13 @@ export const createApp = () => {
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'success', message: 'ShipNow API activa' });
   });
+
+  // Documentación interactiva (Swagger UI) en /api/docs
+  app.use(
+    '/api/docs',
+    swaggerUi.serve,
+    swaggerUi.setup(swaggerSpec, { customSiteTitle: 'ShipNow API — Docs' })
+  );
 
   // Rutas de la API
   app.use('/api', apiRouter);

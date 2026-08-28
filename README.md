@@ -16,6 +16,8 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 > - **M4** — **logging y monitoreo básico** con Winston: logger centralizado,
 >   niveles de log, integración con el manejo de errores, persistencia en archivos
 >   con rotación y un endpoint de prueba.
+> - **M5** — **documentación con Swagger/OpenAPI**: Swagger UI en `/api/docs`,
+>   endpoints agrupados por tags, schemas reutilizables y errores documentados.
 
 ---
 
@@ -50,8 +52,15 @@ src/
 ├── controllers/
 │   ├── products.controller.js
 │   ├── users.controller.js
+│   ├── orders.controller.js
+│   ├── deliveries.controller.js
 │   ├── mocks.controller.js
 │   └── logs.controller.js    # endpoint de prueba del logger
+├── docs/                     # configuración de Swagger (separada de las rutas)
+│   ├── swagger.js            # spec OpenAPI (info, servers, tags, components, paths)
+│   ├── schemas.js            # schemas reutilizables (User, Order, Delivery, ...)
+│   ├── responses.js          # respuestas de error reutilizables
+│   └── paths.js              # endpoints documentados, agrupados por tag
 ├── middlewares/
 │   ├── errorHandler.js   # middleware global de errores + ruta no encontrada
 │   └── httpLogger.js     # loguea cada petición HTTP (nivel http)
@@ -74,6 +83,8 @@ src/
 │   ├── index.js
 │   ├── products.router.js
 │   ├── users.router.js
+│   ├── orders.router.js
+│   ├── deliveries.router.js
 │   ├── mocks.router.js
 │   └── logs.router.js
 ├── services/
@@ -139,6 +150,38 @@ Si todo está bien, verás:
 
 ---
 
+## Documentación interactiva (Swagger) — M5
+
+La API está documentada con **Swagger / OpenAPI 3**. Con el servidor levantado,
+abrí en el navegador:
+
+```
+http://localhost:8080/api/docs
+```
+
+Desde ahí se pueden **consultar y probar** todos los endpoints (botón
+*"Try it out"*). La configuración de Swagger vive **separada** de las rutas, en
+`src/docs/` (`swagger.js`, `schemas.js`, `responses.js`, `paths.js`).
+
+Qué incluye la documentación:
+
+- **Información general**: nombre, versión, descripción, servidor local y propósito.
+- **Agrupación por tags**: `Users`, `Products`, `Orders`, `Deliveries`, `Mocks`, `Logger`.
+- **Cada endpoint**: método, ruta, descripción, parámetros de ruta/query, body
+  esperado, respuesta exitosa y posibles respuestas de error.
+- **Schemas reutilizables**: `User`, `Product`, `Order`, `Delivery`, `OrderItem`,
+  `SuccessResponse` y `ErrorResponse`.
+- **Errores documentados** que coinciden con los reales del proyecto (mismo
+  `code`, mismo status): datos inválidos, recurso no encontrado, email duplicado,
+  cantidad de mocks inválida, error interno, etc.
+- El endpoint del **logger** aparece documentado aclarando que es una herramienta
+  de validación, **no** una funcionalidad del negocio.
+
+> La documentación refleja la API real: los enums de los schemas (roles, estados,
+> prioridades) se toman de las mismas constantes del dominio que usa el código.
+
+---
+
 ## Endpoints
 
 Base: `/api`
@@ -169,6 +212,17 @@ curl -X POST http://localhost:8080/api/products \
 | GET    | `/users/:id`    | Obtiene un usuario por id                          |
 | POST   | `/users`        | Crea un usuario (valida rol y email único)         |
 | DELETE | `/users/:id`    | Elimina un usuario                                 |
+
+### Orders (`/api/orders`) y Deliveries (`/api/deliveries`)
+
+Pedidos y entregas se **generan con el módulo de mocks** y se pueden consultar:
+
+| Método | Ruta                | Descripción                    |
+| ------ | ------------------- | ------------------------------ |
+| GET    | `/orders`           | Lista los pedidos              |
+| GET    | `/orders/:id`       | Obtiene un pedido por id       |
+| GET    | `/deliveries`       | Lista las entregas             |
+| GET    | `/deliveries/:id`   | Obtiene una entrega por id     |
 
 ### Mocking (`/api/mocks`) — M2
 

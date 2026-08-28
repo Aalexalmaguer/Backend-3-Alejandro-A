@@ -67,6 +67,11 @@ export const ERRORS = Object.freeze({
     status: 404,
     message: 'Pedido no encontrado'
   },
+  DELIVERY_NOT_FOUND: {
+    code: 'DELIVERY_NOT_FOUND',
+    status: 404,
+    message: 'Entrega no encontrada'
+  },
 
   // Mocking
   INVALID_MOCK_QUANTITY: {
