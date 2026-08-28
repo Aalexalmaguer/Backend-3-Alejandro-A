@@ -11,6 +11,10 @@ logs/
 *.log
 npm-debug.log*
 
+# Archivos subidos por la aplicación (solo se versionan los metadatos en la DB)
+uploads/
+uploads-test/
+
 # Sistema operativo / editor
 .DS_Store
 .vscode/

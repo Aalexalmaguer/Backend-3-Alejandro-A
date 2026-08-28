@@ -27,5 +27,14 @@ export const deliveriesRepository = {
       const { __v, ...delivery } = doc.toObject();
       return delivery;
     });
+  },
+
+  // Agrega los metadatos de un comprobante a la entrega (M7).
+  addReceipt: async (id, metadata) => {
+    return DeliveryModel.findByIdAndUpdate(
+      id,
+      { $push: { receipts: metadata } },
+      { new: true, runValidators: true, projection: DEFAULT_PROJECTION }
+    ).lean();
   }
 };

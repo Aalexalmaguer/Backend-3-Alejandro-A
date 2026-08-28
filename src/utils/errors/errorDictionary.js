@@ -93,5 +93,37 @@ export const ERRORS = Object.freeze({
     code: 'MOCK_LOAD_FAILED',
     status: 500,
     message: 'No se pudieron cargar los datos de prueba en la base'
+  },
+
+  // Carga de archivos (M7)
+  FILE_REQUIRED: {
+    code: 'FILE_REQUIRED',
+    status: 400,
+    message: 'Se requiere un archivo en el campo "file"'
+  },
+  INVALID_FILE_TYPE: {
+    code: 'INVALID_FILE_TYPE',
+    status: 400,
+    message: 'El tipo de archivo no está permitido'
+  },
+  FILE_TOO_LARGE: {
+    code: 'FILE_TOO_LARGE',
+    status: 400,
+    message: 'El archivo supera el tamaño máximo permitido'
+  },
+  INVALID_DOCUMENT_TYPE: {
+    code: 'INVALID_DOCUMENT_TYPE',
+    status: 400,
+    message: 'El tipo de documento no es válido'
+  },
+  UPLOAD_ERROR: {
+    code: 'UPLOAD_ERROR',
+    status: 400,
+    message: 'No se pudo procesar la carga del archivo'
+  },
+  FILE_SAVE_ERROR: {
+    code: 'FILE_SAVE_ERROR',
+    status: 500,
+    message: 'No se pudieron guardar los metadatos del archivo'
   }
 });

@@ -28,5 +28,9 @@ export const responses = {
   RouteNotFound: errorExample('ROUTE_NOT_FOUND', 'La ruta solicitada no existe'),
   DuplicateEmail: errorExample('DUPLICATE_EMAIL', 'Ya existe un usuario con ese email'),
   MockLoadFailed: errorExample('MOCK_LOAD_FAILED', 'No se pudieron cargar los datos de prueba en la base'),
+  FileRequired: errorExample('FILE_REQUIRED', 'Se requiere un archivo en el campo "file"'),
+  InvalidFileType: errorExample('INVALID_FILE_TYPE', 'El tipo de archivo no está permitido'),
+  FileTooLarge: errorExample('FILE_TOO_LARGE', 'El archivo supera el tamaño máximo permitido'),
+  InvalidDocumentType: errorExample('INVALID_DOCUMENT_TYPE', 'El tipo de documento no es válido'),
   InternalError: errorExample('INTERNAL_SERVER_ERROR', 'Ocurrió un error interno en el servidor')
 };

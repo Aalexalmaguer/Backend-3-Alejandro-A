@@ -1,7 +1,48 @@
+import { DOCUMENT_TYPE_VALUES } from '../constants/index.js';
+
 /**
  * Definición de los endpoints (paths) de OpenAPI, agrupados por tags.
  * Se mantiene separada de los routers: acá SOLO se documenta, no hay lógica.
  */
+
+// Cuerpo multipart/form-data para subir un comprobante (solo el archivo).
+const receiptMultipartBody = {
+  required: true,
+  content: {
+    'multipart/form-data': {
+      schema: {
+        type: 'object',
+        required: ['file'],
+        properties: {
+          file: { type: 'string', format: 'binary', description: 'Archivo (PDF, JPG o PNG, máx 5 MB)' }
+        }
+      }
+    }
+  }
+};
+
+// Respuesta 201 de una carga de archivo con sus metadatos.
+const fileCreated = (description, metaKey, entityKey, entityRef) => ({
+  description,
+  content: {
+    'application/json': {
+      schema: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', example: 'success' },
+          message: { type: 'string' },
+          payload: {
+            type: 'object',
+            properties: {
+              [metaKey]: { $ref: '#/components/schemas/FileMetadata' },
+              [entityKey]: { $ref: entityRef }
+            }
+          }
+        }
+      }
+    }
+  }
+});
 
 // Respuesta exitosa con envoltorio { status: 'success', payload }.
 const ok = (description, schemaRef, isArray = false) => ({
@@ -77,6 +118,45 @@ export const paths = {
       responses: {
         200: ok('Usuario eliminado', '#/components/schemas/SuccessResponse'),
         400: err('InvalidId'),
+        404: err('UserNotFound')
+      }
+    }
+  },
+  '/api/users/{id}/documents': {
+    post: {
+      tags: ['Users'],
+      summary: 'Sube un documento y lo asocia al usuario (multipart/form-data)',
+      description:
+        'Verifica que el usuario exista, valida el archivo (tipo PDF/JPG/PNG, máx 5 MB) ' +
+        'y el tipo de documento, guarda el archivo en el servidor y registra sus ' +
+        'metadatos en el usuario. En la base se guardan SOLO los metadatos.',
+      parameters: [idParam],
+      requestBody: {
+        required: true,
+        content: {
+          'multipart/form-data': {
+            schema: {
+              type: 'object',
+              required: ['file', 'documentType'],
+              properties: {
+                file: {
+                  type: 'string',
+                  format: 'binary',
+                  description: 'Archivo (PDF, JPG o PNG, máx 5 MB)'
+                },
+                documentType: {
+                  type: 'string',
+                  enum: DOCUMENT_TYPE_VALUES,
+                  description: 'Tipo de documento.'
+                }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        201: fileCreated('Documento cargado', 'document', 'user', '#/components/schemas/User'),
+        400: err('FileRequired'),
         404: err('UserNotFound')
       }
     }
@@ -228,6 +308,22 @@ export const paths = {
       }
     }
   },
+  '/api/orders/{id}/receipts': {
+    post: {
+      tags: ['Orders'],
+      summary: 'Sube un comprobante y lo asocia al pedido (multipart/form-data)',
+      description:
+        'Verifica que el pedido exista, valida el archivo y registra sus metadatos ' +
+        'como comprobante del pedido.',
+      parameters: [idParam],
+      requestBody: receiptMultipartBody,
+      responses: {
+        201: fileCreated('Comprobante cargado', 'receipt', 'order', '#/components/schemas/Order'),
+        400: err('FileRequired'),
+        404: err('OrderNotFound')
+      }
+    }
+  },
 
   // ---------------- DELIVERIES ----------------
   '/api/deliveries': {
@@ -246,6 +342,22 @@ export const paths = {
       responses: {
         200: ok('Entrega encontrada', '#/components/schemas/Delivery'),
         400: err('InvalidId'),
+        404: err('DeliveryNotFound')
+      }
+    }
+  },
+  '/api/deliveries/{id}/receipts': {
+    post: {
+      tags: ['Deliveries'],
+      summary: 'Sube un comprobante y lo asocia a la entrega (multipart/form-data)',
+      description:
+        'Verifica que la entrega exista, valida el archivo y registra sus metadatos ' +
+        'como comprobante de la entrega.',
+      parameters: [idParam],
+      requestBody: receiptMultipartBody,
+      responses: {
+        201: fileCreated('Comprobante cargado', 'receipt', 'delivery', '#/components/schemas/Delivery'),
+        400: err('FileRequired'),
         404: err('DeliveryNotFound')
       }
     }

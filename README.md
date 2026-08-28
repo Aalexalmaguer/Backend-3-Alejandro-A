@@ -21,6 +21,9 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 > - **M6** — **testing funcional** con Mocha, Chai y Supertest: suite de tests de
 >   los endpoints principales (casos exitosos y de error) sobre una base de datos
 >   de testing en memoria.
+> - **M7** — **carga de archivos** con Multer: documentos de usuario y comprobantes
+>   de pedidos/entregas; solo se guardan metadatos en la base y los archivos van a
+>   `uploads/` (ignorada en git).
 
 ---
 
@@ -49,7 +52,8 @@ src/
 ├── config/
 │   ├── index.js          # dotenv + validación de variables de entorno
 │   ├── database.js       # conexión centralizada a MongoDB
-│   └── logger.js         # logger centralizado (Winston) + rotación de archivos
+│   ├── logger.js         # logger centralizado (Winston) + rotación de archivos
+│   └── multer.js         # config centralizada de Multer (destino, tipos, tamaño)
 ├── constants/
 │   └── index.js          # roles, estados y prioridades (Object.freeze) — sin strings mágicos
 ├── controllers/
@@ -66,7 +70,8 @@ src/
 │   └── paths.js              # endpoints documentados, agrupados por tag
 ├── middlewares/
 │   ├── errorHandler.js   # middleware global de errores + ruta no encontrada
-│   └── httpLogger.js     # loguea cada petición HTTP (nivel http)
+│   ├── httpLogger.js     # loguea cada petición HTTP (nivel http)
+│   └── entityExists.js   # valida que la entidad exista ANTES de subir el archivo
 ├── mocks/                # generadores de datos de prueba (funciones puras, sin DB)
 │   ├── helpers.js
 │   ├── users.mock.js
@@ -415,6 +420,60 @@ Después de llamarlo, revisá la **consola** (con colores) y la carpeta **`logs/
 
 ---
 
+## Carga de archivos (M7)
+
+La API permite subir **documentos** (asociados a un usuario) y **comprobantes**
+(asociados a un pedido o una entrega) vía `multipart/form-data` con **Multer**.
+En la base se guardan **solo los metadatos**; el archivo se guarda en el servidor.
+
+### Configuración
+
+Toda la config de Multer está **centralizada** en `src/config/multer.js` (separada
+de los routers): define destino, nombres, tipos aceptados, tamaño máximo y el
+mapeo de errores.
+
+- **Tipos permitidos**: PDF, JPG, PNG.
+- **Tamaño máximo**: 5 MB por archivo.
+- **Carpeta de subidas**: `uploads/`, organizada en subcarpetas por tipo
+  (`user-documents/`, `licenses/`, `delivery-proofs/`). Está en `.gitignore`:
+  **los archivos subidos NO se suben al repo** (solo viajan los metadatos en la DB).
+  En testing se usa `uploads-test/` (descartable).
+
+### Metadatos que se guardan
+
+`originalName`, `filename` (nombre generado), `path`, `mimetype`, `size`,
+`documentType` y `uploadedAt`.
+
+### Endpoints
+
+| Método | Ruta | Campo archivo | Campos extra | Descripción |
+| ------ | ---- | ------------- | ------------ | ----------- |
+| POST | `/api/users/:id/documents` | `file` | `documentType` (`user_document` \| `driver_license` \| `delivery_proof`) | Sube un documento y lo asocia al usuario |
+| POST | `/api/orders/:id/receipts` | `file` | — | Sube un comprobante y lo asocia al pedido |
+| POST | `/api/deliveries/:id/receipts` | `file` | — | Sube un comprobante y lo asocia a la entrega |
+
+Ejemplo:
+
+```bash
+curl -X POST http://localhost:8080/api/users/<userId>/documents \
+  -F "documentType=user_document" \
+  -F "file=@/ruta/a/mi-documento.pdf"
+```
+
+### Validaciones y errores
+
+Conectadas al **sistema de errores centralizado** (mismo formato del M3):
+`FILE_REQUIRED` (falta el archivo), `INVALID_FILE_TYPE` (tipo no permitido),
+`FILE_TOO_LARGE` (supera 5 MB), `INVALID_DOCUMENT_TYPE`, y `404` si la entidad
+(usuario/pedido/entrega) no existe. La existencia de la entidad se valida **antes**
+de guardar el archivo, así no queda basura en el disco.
+
+El **logger** registra los eventos relevantes (carga exitosa, intento de tipo no
+permitido, error de guardado, comprobante asociado), y los endpoints están
+**documentados en Swagger** como `multipart/form-data`.
+
+---
+
 ## Testing (M6)
 
 Tests **funcionales** de los endpoints principales con **Mocha** (organiza y
@@ -453,6 +512,7 @@ Los tests viven en `test/` y validan **status HTTP + estructura del body** en ca
 | `test/orders.test.js`     | Crear pedido con datos válidos (total calculado), consultar por id, actualizar estado; errores: datos incompletos (400), customer inexistente (404), pedido inexistente (404), estado inválido (400) |
 | `test/mocks.test.js`      | Preview sin guardar, seed, `generateData`; errores: cantidad inválida (400), colección inválida (400) |
 | `test/docs-logger.test.js`| Endpoint del logger, ruta de Swagger `/api/docs`, y ruta inexistente (404) |
+| `test/files.test.js`      | Carga de documento (éxito); errores: falta el archivo (400), tipo de documento inválido (400), tipo de archivo no permitido (400), usuario/pedido inexistente (404) |
 
 Los casos de error validan el **mismo formato** que define el módulo de errores
 (`{ status: 'error', error: { code, message } }`), y hay coherencia con Swagger:

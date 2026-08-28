@@ -49,6 +49,15 @@ export const usersRepository = {
     }).lean();
   },
 
+  // Agrega los metadatos de un documento al usuario (M7).
+  addDocument: async (id, metadata) => {
+    return UserModel.findByIdAndUpdate(
+      id,
+      { $push: { documents: metadata } },
+      { new: true, runValidators: true, projection: SAFE_PROJECTION }
+    ).lean();
+  },
+
   delete: async (id) => {
     return UserModel.findByIdAndDelete(id, { projection: SAFE_PROJECTION }).lean();
   }

@@ -28,6 +28,15 @@ export const ordersRepository = {
     }).lean();
   },
 
+  // Agrega los metadatos de un comprobante al pedido (M7).
+  addReceipt: async (id, metadata) => {
+    return OrderModel.findByIdAndUpdate(
+      id,
+      { $push: { receipts: metadata } },
+      { new: true, runValidators: true, projection: DEFAULT_PROJECTION }
+    ).lean();
+  },
+
   // Inserción masiva para la carga de datos de prueba (mocking).
   insertMany: async (docs) => {
     const created = await OrderModel.insertMany(docs);

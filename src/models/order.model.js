@@ -5,6 +5,7 @@ import {
   DELIVERY_PRIORITY,
   DELIVERY_PRIORITY_VALUES
 } from '../constants/index.js';
+import { fileMetadataSchema } from './fileMetadata.schema.js';
 
 /**
  * Modelo de Pedido (Order).
@@ -51,6 +52,11 @@ const orderSchema = new mongoose.Schema(
       type: String,
       enum: DELIVERY_PRIORITY_VALUES,
       default: DELIVERY_PRIORITY.NORMAL
+    },
+    // Metadatos de comprobantes asociados al pedido (M7).
+    receipts: {
+      type: [fileMetadataSchema],
+      default: []
     }
   },
   { timestamps: true }

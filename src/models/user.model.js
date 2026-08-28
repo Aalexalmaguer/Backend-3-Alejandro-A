@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { USER_ROLES, USER_ROLE_VALUES } from '../constants/index.js';
+import { fileMetadataSchema } from './fileMetadata.schema.js';
 
 /**
  * Modelo de Usuario.
@@ -37,6 +38,11 @@ const userSchema = new mongoose.Schema(
     // Solo aplica a repartidores (role = driver): indica si puede tomar entregas.
     isAvailable: {
       type: Boolean
+    },
+    // Metadatos de los documentos adjuntos del usuario (M7).
+    documents: {
+      type: [fileMetadataSchema],
+      default: []
     }
   },
   { timestamps: true }

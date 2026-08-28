@@ -3,7 +3,8 @@ import {
   PRODUCT_STATUS_VALUES,
   ORDER_STATUS_VALUES,
   DELIVERY_STATUS_VALUES,
-  DELIVERY_PRIORITY_VALUES
+  DELIVERY_PRIORITY_VALUES,
+  DOCUMENT_TYPE_VALUES
 } from '../constants/index.js';
 
 /**
@@ -144,6 +145,20 @@ export const schemas = {
       priority: { type: 'string', enum: DELIVERY_PRIORITY_VALUES, example: 'normal' },
       createdAt: { type: 'string', format: 'date-time' },
       updatedAt: { type: 'string', format: 'date-time' }
+    }
+  },
+
+  // Metadatos de un archivo cargado (lo único que se guarda en la base).
+  FileMetadata: {
+    type: 'object',
+    properties: {
+      originalName: { type: 'string', example: 'dni-frente.pdf' },
+      filename: { type: 'string', example: '1723050000000-a1b2c3d4e5f6.pdf' },
+      path: { type: 'string', example: 'uploads/user-documents/1723050000000-a1b2c3d4e5f6.pdf' },
+      mimetype: { type: 'string', example: 'application/pdf' },
+      size: { type: 'integer', description: 'Tamaño en bytes', example: 20345 },
+      documentType: { type: 'string', enum: DOCUMENT_TYPE_VALUES, example: 'user_document' },
+      uploadedAt: { type: 'string', format: 'date-time' }
     }
   },
 

@@ -49,9 +49,17 @@ export const DELIVERY_PRIORITY = Object.freeze({
   HIGH: 'high'
 });
 
+// Tipos de documento que se pueden adjuntar a las entidades.
+export const DOCUMENT_TYPES = Object.freeze({
+  USER_DOCUMENT: 'user_document',
+  DRIVER_LICENSE: 'driver_license',
+  DELIVERY_PROOF: 'delivery_proof'
+});
+
 // Listas derivadas, útiles para validaciones y para los enums de Mongoose.
 export const USER_ROLE_VALUES = Object.freeze(Object.values(USER_ROLES));
 export const PRODUCT_STATUS_VALUES = Object.freeze(Object.values(PRODUCT_STATUS));
 export const ORDER_STATUS_VALUES = Object.freeze(Object.values(ORDER_STATUS));
 export const DELIVERY_STATUS_VALUES = Object.freeze(Object.values(DELIVERY_STATUS));
 export const DELIVERY_PRIORITY_VALUES = Object.freeze(Object.values(DELIVERY_PRIORITY));
+export const DOCUMENT_TYPE_VALUES = Object.freeze(Object.values(DOCUMENT_TYPES));

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import mongoose from 'mongoose';
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
@@ -41,9 +43,10 @@ export const mochaHooks = {
     }
   },
 
-  // Cierra la conexión y detiene la base en memoria al terminar.
+  // Cierra la conexión, detiene la base en memoria y borra los archivos de test.
   afterAll: async function () {
     await mongoose.disconnect();
     if (mongod) await mongod.stop();
+    fs.rmSync(path.resolve('uploads-test'), { recursive: true, force: true });
   }
 };
