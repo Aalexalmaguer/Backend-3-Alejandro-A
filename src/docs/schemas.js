@@ -105,6 +105,26 @@ export const schemas = {
     }
   },
 
+  OrderInput: {
+    type: 'object',
+    required: ['customer', 'deliveryAddress', 'items'],
+    properties: {
+      customer: {
+        type: 'string',
+        description: 'Id de un usuario existente (dueño del pedido).',
+        example: '66b0f2a1c1a2b3c4d5e6f7a8'
+      },
+      deliveryAddress: { type: 'string', example: 'Av. Reforma 500' },
+      items: { type: 'array', items: { $ref: '#/components/schemas/OrderItem' } },
+      priority: {
+        type: 'string',
+        enum: DELIVERY_PRIORITY_VALUES,
+        description: 'Opcional. Por defecto "normal".',
+        example: 'normal'
+      }
+    }
+  },
+
   Delivery: {
     type: 'object',
     description: 'Entrega. Relaciona un pedido con un repartidor (driver).',

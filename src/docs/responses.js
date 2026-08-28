@@ -23,6 +23,7 @@ export const responses = {
   UserNotFound: errorExample('USER_NOT_FOUND', 'Usuario no encontrado'),
   ProductNotFound: errorExample('PRODUCT_NOT_FOUND', 'Producto no encontrado'),
   OrderNotFound: errorExample('ORDER_NOT_FOUND', 'Pedido no encontrado'),
+  InvalidOrderStatus: errorExample('INVALID_ORDER_STATUS', 'El estado del pedido no es válido'),
   DeliveryNotFound: errorExample('DELIVERY_NOT_FOUND', 'Entrega no encontrada'),
   RouteNotFound: errorExample('ROUTE_NOT_FOUND', 'La ruta solicitada no existe'),
   DuplicateEmail: errorExample('DUPLICATE_EMAIL', 'Ya existe un usuario con ese email'),

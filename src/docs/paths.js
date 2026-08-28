@@ -168,8 +168,25 @@ export const paths = {
     get: {
       tags: ['Orders'],
       summary: 'Lista los pedidos',
-      description: 'Los pedidos se generan con el módulo de mocks.',
       responses: { 200: ok('Lista de pedidos', '#/components/schemas/Order', true) }
+    },
+    post: {
+      tags: ['Orders'],
+      summary: 'Crea un pedido',
+      description:
+        'Valida que el customer exista, que haya items válidos y calcula el total. ' +
+        'El estado inicial es "created".',
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': { schema: { $ref: '#/components/schemas/OrderInput' } }
+        }
+      },
+      responses: {
+        201: ok('Pedido creado', '#/components/schemas/Order'),
+        400: err('ValidationError'),
+        404: err('UserNotFound')
+      }
     }
   },
   '/api/orders/{id}': {
@@ -180,6 +197,33 @@ export const paths = {
       responses: {
         200: ok('Pedido encontrado', '#/components/schemas/Order'),
         400: err('InvalidId'),
+        404: err('OrderNotFound')
+      }
+    }
+  },
+  '/api/orders/{id}/status': {
+    patch: {
+      tags: ['Orders'],
+      summary: 'Actualiza el estado de un pedido',
+      description: 'Solo acepta estados válidos del dominio (ORDER_STATUS).',
+      parameters: [idParam],
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['status'],
+              properties: {
+                status: { type: 'string', example: 'in_transit' }
+              }
+            }
+          }
+        }
+      },
+      responses: {
+        200: ok('Estado actualizado', '#/components/schemas/Order'),
+        400: err('InvalidOrderStatus'),
         404: err('OrderNotFound')
       }
     }

@@ -18,6 +18,9 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 >   con rotación y un endpoint de prueba.
 > - **M5** — **documentación con Swagger/OpenAPI**: Swagger UI en `/api/docs`,
 >   endpoints agrupados por tags, schemas reutilizables y errores documentados.
+> - **M6** — **testing funcional** con Mocha, Chai y Supertest: suite de tests de
+>   los endpoints principales (casos exitosos y de error) sobre una base de datos
+>   de testing en memoria.
 
 ---
 
@@ -409,6 +412,52 @@ curl http://localhost:8080/api/logs/test
 
 Después de llamarlo, revisá la **consola** (con colores) y la carpeta **`logs/`**:
 `combined-*.log` tendrá los 6 niveles y `error-*.log` solo `error` y `fatal`.
+
+---
+
+## Testing (M6)
+
+Tests **funcionales** de los endpoints principales con **Mocha** (organiza y
+ejecuta), **Chai** (asserts) y **Supertest** (peticiones HTTP). La app de Express
+está separada del arranque del servidor (`createApp()` en `src/app.js`), así que
+los tests la importan **sin abrir un puerto**.
+
+### Herramientas y cómo ejecutar
+
+```bash
+npm install     # instala también las dependencias de testing (devDependencies)
+npm test        # ejecuta toda la suite con Mocha
+```
+
+### Entorno de testing
+
+- Se ejecuta con `NODE_ENV=test` (lo fuerza `test/setup.js`): el logger queda
+  silenciado y **no** escribe archivos de log.
+- **Base de datos separada y descartable**: por defecto se levanta una MongoDB
+  **en memoria** (`mongodb-memory-server`), así los tests **no tocan datos reales**
+  y cada corrida arranca limpia. No requiere configurar nada.
+- Alternativa: si definís `MONGODB_URI_TEST`, los tests usan esa base de testing
+  separada en lugar de la de memoria.
+- **Datos controlados y repetibles**: cada test crea lo que necesita (ej. un
+  usuario válido antes de un pedido) o usa el módulo de mocks. **Después de cada
+  test** se vacían todas las colecciones (estrategia de limpieza en `test/setup.js`),
+  para que ningún test dependa del estado de otro.
+
+### Qué se cubre
+
+Los tests viven en `test/` y validan **status HTTP + estructura del body** en cada caso:
+
+| Archivo                   | Cubre |
+| ------------------------- | ----- |
+| `test/users.test.js`      | Listar/crear usuarios; errores: datos incompletos (400), email duplicado (409), usuario inexistente (404) |
+| `test/orders.test.js`     | Crear pedido con datos válidos (total calculado), consultar por id, actualizar estado; errores: datos incompletos (400), customer inexistente (404), pedido inexistente (404), estado inválido (400) |
+| `test/mocks.test.js`      | Preview sin guardar, seed, `generateData`; errores: cantidad inválida (400), colección inválida (400) |
+| `test/docs-logger.test.js`| Endpoint del logger, ruta de Swagger `/api/docs`, y ruta inexistente (404) |
+
+Los casos de error validan el **mismo formato** que define el módulo de errores
+(`{ status: 'error', error: { code, message } }`), y hay coherencia con Swagger:
+comportamientos documentados como el **404 ante recurso/ruta inexistente** tienen
+su test.
 
 ---
 

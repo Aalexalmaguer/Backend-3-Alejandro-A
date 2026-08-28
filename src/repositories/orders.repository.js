@@ -20,6 +20,14 @@ export const ordersRepository = {
     return order;
   },
 
+  update: async (id, changes) => {
+    return OrderModel.findByIdAndUpdate(id, changes, {
+      new: true,
+      runValidators: true,
+      projection: DEFAULT_PROJECTION
+    }).lean();
+  },
+
   // Inserción masiva para la carga de datos de prueba (mocking).
   insertMany: async (docs) => {
     const created = await OrderModel.insertMany(docs);

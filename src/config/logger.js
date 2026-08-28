@@ -50,43 +50,52 @@ const consoleFormat = winston.format.combine(
   winston.format.printf((info) => `${info.timestamp} [${info.level}]  ${info.message}`)
 );
 
-// Carpeta de logs (se crea si no existe; está ignorada en .gitignore).
-const LOGS_DIR = path.resolve('logs');
-fs.mkdirSync(LOGS_DIR, { recursive: true });
+// En entorno de testing el logger no escribe archivos ni ensucia la salida:
+// una única consola silenciada. Así los tests quedan limpios y no generan logs/.
+const isTest = config.nodeEnv === 'test';
 
-// Estrategia de rotación común: un archivo por día, máx 5 MB, se conservan 14 días.
-const rotationBase = {
-  datePattern: 'YYYY-MM-DD',
-  maxSize: '5m',
-  maxFiles: '14d',
-  zippedArchive: true
-};
+let transports;
+if (isTest) {
+  transports = [new winston.transports.Console({ format: consoleFormat, silent: true })];
+} else {
+  // Carpeta de logs (se crea si no existe; está ignorada en .gitignore).
+  const LOGS_DIR = path.resolve('logs');
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
 
-const transports = [
-  // Consola: útil en desarrollo, con colores.
-  new winston.transports.Console({ format: consoleFormat }),
+  // Estrategia de rotación: un archivo por día, máx 5 MB, se conservan 14 días.
+  const rotationBase = {
+    datePattern: 'YYYY-MM-DD',
+    maxSize: '5m',
+    maxFiles: '14d',
+    zippedArchive: true
+  };
 
-  // Archivo combinado: todos los niveles según el entorno.
-  new DailyRotateFile({
-    ...rotationBase,
-    dirname: LOGS_DIR,
-    filename: 'combined-%DATE%.log',
-    symlinkName: 'combined.log',
-    createSymlink: true,
-    format: baseFormat
-  }),
+  transports = [
+    // Consola: útil en desarrollo, con colores.
+    new winston.transports.Console({ format: consoleFormat }),
 
-  // Archivo de errores: SOLO 'error' y 'fatal' (nunca info ni debug).
-  new DailyRotateFile({
-    ...rotationBase,
-    level: 'error',
-    dirname: LOGS_DIR,
-    filename: 'error-%DATE%.log',
-    symlinkName: 'error.log',
-    createSymlink: true,
-    format: baseFormat
-  })
-];
+    // Archivo combinado: todos los niveles según el entorno.
+    new DailyRotateFile({
+      ...rotationBase,
+      dirname: LOGS_DIR,
+      filename: 'combined-%DATE%.log',
+      symlinkName: 'combined.log',
+      createSymlink: true,
+      format: baseFormat
+    }),
+
+    // Archivo de errores: SOLO 'error' y 'fatal' (nunca info ni debug).
+    new DailyRotateFile({
+      ...rotationBase,
+      level: 'error',
+      dirname: LOGS_DIR,
+      filename: 'error-%DATE%.log',
+      symlinkName: 'error.log',
+      createSymlink: true,
+      format: baseFormat
+    })
+  ];
+}
 
 export const logger = winston.createLogger({
   levels,

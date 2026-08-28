@@ -72,6 +72,11 @@ export const ERRORS = Object.freeze({
     status: 404,
     message: 'Entrega no encontrada'
   },
+  INVALID_ORDER_STATUS: {
+    code: 'INVALID_ORDER_STATUS',
+    status: 400,
+    message: 'El estado del pedido no es válido'
+  },
 
   // Mocking
   INVALID_MOCK_QUANTITY: {
