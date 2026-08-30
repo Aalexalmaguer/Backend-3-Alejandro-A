@@ -24,6 +24,8 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 > - **M7** — **carga de archivos** con Multer: documentos de usuario y comprobantes
 >   de pedidos/entregas; solo se guardan metadatos en la base y los archivos van a
 >   `uploads/` (ignorada en git).
+> - **M8** — **performance, producción y Docker**: paginación en los listados,
+>   config por entorno, health check, y contenerización con `Dockerfile` + `.dockerignore`.
 
 ---
 
@@ -62,7 +64,9 @@ src/
 │   ├── orders.controller.js
 │   ├── deliveries.controller.js
 │   ├── mocks.controller.js
-│   └── logs.controller.js    # endpoint de prueba del logger
+│   ├── logs.controller.js    # endpoint de prueba del logger
+│   ├── health.controller.js  # health check
+│   └── files.controller.js   # carga de archivos
 ├── docs/                     # configuración de Swagger (separada de las rutas)
 │   ├── swagger.js            # spec OpenAPI (info, servers, tags, components, paths)
 │   ├── schemas.js            # schemas reutilizables (User, Order, Delivery, ...)
@@ -100,6 +104,7 @@ src/
 │   ├── users.service.js
 │   └── mocks.service.js  # generación + carga controlada, respeta relaciones
 ├── utils/
+│   ├── pagination.js     # helpers de paginación (page/limit + metadatos)
 │   └── errors/
 │       ├── errorDictionary.js  # diccionario: code + status + message
 │       ├── AppError.js         # error personalizado + factory createError
@@ -155,6 +160,87 @@ Si todo está bien, verás:
 > **Robustez:** si borrás `MONGODB_URI` del `.env`, la app **no arranca** y
 > muestra un error claro (`Faltan variables de entorno obligatorias: MONGODB_URI`)
 > en lugar de fallar más tarde con un mensaje confuso.
+
+---
+
+## Producción y Docker (M8)
+
+### Variables de entorno
+
+Todas las configuraciones se leen de forma centralizada en `src/config/index.js`
+(nunca hay valores sensibles escritos en el código). Ver `.env.example`:
+
+| Variable | Obligatoria | Descripción |
+| -------- | ----------- | ----------- |
+| `MONGODB_URI` | **Sí** | Cadena de conexión a MongoDB. Si falta, la app **no arranca**. |
+| `PORT` | No | Puerto de la API (por defecto `8080`). |
+| `NODE_ENV` | No | `development` \| `test` \| `production` (por defecto `development`). |
+| `LOG_LEVEL` | No | Nivel de logs. Por defecto `debug` en dev, `info` en prod. |
+| `JWT_SECRET` | No | Secreto para JWT (para cuando se agregue autenticación). |
+| `EXTERNAL_SERVICE_URL` | No | URL de servicios externos (integraciones futuras). |
+| `ENABLE_INTERNAL_ENDPOINTS` | No | `true` para exponer `/mocks` y `/logs` en producción. |
+
+### Ejecutar localmente
+
+```bash
+npm install
+cp .env.example .env      # y completá MONGODB_URI
+npm run dev               # desarrollo (recarga con --watch)
+npm start                 # modo normal
+npm test                  # corre la suite de tests
+```
+
+### Performance
+
+- Los listados (`/users`, `/orders`, `/deliveries`, `/products`) están **paginados**
+  con `?page` y `?limit` (por defecto 10, máximo 100); **nunca** devuelven la
+  colección completa sin control. La respuesta incluye un objeto `pagination`
+  (`total`, `page`, `limit`, `totalPages`, `hasNextPage`, `hasPrevPage`).
+- La carga de archivos tiene límites de tipo y tamaño (5 MB), y los uploads no van al repo.
+- En producción el nivel de logs sube a `info`, así no se registran `http`/`debug`
+  en cada request (evita logs excesivos).
+
+### Health check
+
+`GET /api/health` → estado de la API, entorno, conexión a la base, uptime y
+timestamp. **No expone información sensible** (nunca la URI de la base ni secretos).
+
+### Endpoints internos en producción
+
+**Criterio aplicado:** los endpoints internos `/api/mocks` y `/api/logs` son
+herramientas de desarrollo, por lo que quedan **deshabilitados en `production`**
+(responden 404). Se pueden reactivar con `ENABLE_INTERNAL_ENDPOINTS=true`. El health
+check y la documentación Swagger quedan siempre disponibles.
+
+### Docker
+
+El proyecto incluye un `Dockerfile` (imagen `node:20-alpine`, instala solo
+dependencias de producción, expone el puerto `8080` y arranca con `npm start`) y
+un `.dockerignore` que evita copiar archivos innecesarios o sensibles a la imagen
+(`node_modules`, `.env`, `.git`, `logs/`, `uploads/`, `test/`, `coverage`, temporales).
+
+```bash
+# 1. Construir la imagen
+docker build -t shipnow-api .
+
+# 2. Ejecutar el contenedor pasando las variables de entorno
+docker run -p 8080:8080 --env-file .env shipnow-api
+```
+
+Con el contenedor corriendo, podés probar:
+
+- Health check: `http://localhost:8080/api/health`
+- Swagger: `http://localhost:8080/api/docs`
+- Algún endpoint principal: `http://localhost:8080/api/users`
+
+> **Nota sobre `MONGODB_URI` en Docker:** si tu MongoDB corre en tu máquina host,
+> usá `host.docker.internal` (Mac/Windows) o la IP del host en la URI, o levantá
+> un contenedor de MongoDB aparte. Sin `MONGODB_URI` válida el contenedor no arranca
+> (falla al inicio con un mensaje claro, como se espera).
+
+> **Logs y uploads en Docker:** se generan **dentro** del contenedor y son
+> efímeros (se pierden al recrearlo). Para conservarlos, montá volúmenes:
+> `-v $(pwd)/logs:/app/logs -v $(pwd)/uploads:/app/uploads`. Nunca se suben al repo.
 
 ---
 
@@ -513,6 +599,7 @@ Los tests viven en `test/` y validan **status HTTP + estructura del body** en ca
 | `test/mocks.test.js`      | Preview sin guardar, seed, `generateData`; errores: cantidad inválida (400), colección inválida (400) |
 | `test/docs-logger.test.js`| Endpoint del logger, ruta de Swagger `/api/docs`, y ruta inexistente (404) |
 | `test/files.test.js`      | Carga de documento (éxito); errores: falta el archivo (400), tipo de documento inválido (400), tipo de archivo no permitido (400), usuario/pedido inexistente (404) |
+| `test/health-pagination.test.js` | Health check (200, sin datos sensibles) y paginación de listados (límite + metadatos) |
 
 Los casos de error validan el **mismo formato** que define el módulo de errores
 (`{ status: 'error', error: { code, message } }`), y hay coherencia con Swagger:

@@ -70,15 +70,61 @@ const idParam = {
   schema: { type: 'string' }
 };
 
+// Parámetros de paginación para los listados grandes.
+const paginationParams = [
+  {
+    name: 'page',
+    in: 'query',
+    required: false,
+    description: 'Número de página (por defecto 1).',
+    schema: { type: 'integer', minimum: 1, example: 1 }
+  },
+  {
+    name: 'limit',
+    in: 'query',
+    required: false,
+    description: 'Cantidad por página (por defecto 10, máximo 100).',
+    schema: { type: 'integer', minimum: 1, maximum: 100, example: 10 }
+  }
+];
+
 const err = (ref) => ({ $ref: `#/components/responses/${ref}` });
 
 export const paths = {
   // ---------------- USERS ----------------
+  '/api/health': {
+    get: {
+      tags: ['Health'],
+      summary: 'Estado de la API (health check)',
+      description: 'Devuelve estado, entorno, conexión a la base, uptime y timestamp. No expone datos sensibles.',
+      responses: {
+        200: {
+          description: 'API activa',
+          content: {
+            'application/json': {
+              schema: { type: 'object' },
+              example: {
+                status: 'success',
+                data: {
+                  status: 'ok',
+                  environment: 'development',
+                  database: 'connected',
+                  uptime: 42,
+                  timestamp: '2026-08-30T12:00:00.000Z'
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   '/api/users': {
     get: {
       tags: ['Users'],
-      summary: 'Lista todos los usuarios',
-      description: 'Devuelve todos los usuarios. El password nunca se incluye.',
+      summary: 'Lista los usuarios (paginado)',
+      description: 'Devuelve los usuarios de forma paginada. El password nunca se incluye.',
+      parameters: paginationParams,
       responses: {
         200: ok('Lista de usuarios', '#/components/schemas/User', true)
       }
@@ -175,7 +221,8 @@ export const paths = {
           required: false,
           description: 'Si es "true", filtra solo productos disponibles.',
           schema: { type: 'string', enum: ['true'] }
-        }
+        },
+        ...paginationParams
       ],
       responses: { 200: ok('Lista de productos', '#/components/schemas/Product', true) }
     },
@@ -247,7 +294,8 @@ export const paths = {
   '/api/orders': {
     get: {
       tags: ['Orders'],
-      summary: 'Lista los pedidos',
+      summary: 'Lista los pedidos (paginado)',
+      parameters: paginationParams,
       responses: { 200: ok('Lista de pedidos', '#/components/schemas/Order', true) }
     },
     post: {
@@ -329,8 +377,9 @@ export const paths = {
   '/api/deliveries': {
     get: {
       tags: ['Deliveries'],
-      summary: 'Lista las entregas',
+      summary: 'Lista las entregas (paginado)',
       description: 'Las entregas se generan con el módulo de mocks.',
+      parameters: paginationParams,
       responses: { 200: ok('Lista de entregas', '#/components/schemas/Delivery', true) }
     }
   },

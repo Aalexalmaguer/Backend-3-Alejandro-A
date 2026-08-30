@@ -24,9 +24,21 @@ if (missingVars.length > 0) {
  * El resto de la aplicación importa "config" desde acá y trabaja con valores
  * ya validados y con sus defaults resueltos.
  */
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isProduction = nodeEnv === 'production';
+
 export const config = Object.freeze({
   port: Number(process.env.PORT) || 8080,
   mongoUri: process.env.MONGODB_URI,
-  nodeEnv: process.env.NODE_ENV || 'development',
-  isProduction: (process.env.NODE_ENV || 'development') === 'production'
+  nodeEnv,
+  isProduction,
+  // Nivel de logs: por defecto según el entorno; se puede forzar con LOG_LEVEL.
+  logLevel: process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug'),
+  // Opcionales (para cuando se agregue auth / servicios externos). No son
+  // críticos: la app arranca sin ellos, pero se leen SIEMPRE desde acá.
+  jwtSecret: process.env.JWT_SECRET || null,
+  externalServiceUrl: process.env.EXTERNAL_SERVICE_URL || null,
+  // Si en producción se exponen los endpoints internos (mocks / logger test).
+  // Por defecto quedan DESHABILITADOS en producción (son herramientas de dev).
+  enableInternalEndpoints: process.env.ENABLE_INTERNAL_ENDPOINTS === 'true' || !isProduction
 });

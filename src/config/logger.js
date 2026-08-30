@@ -35,8 +35,8 @@ const colors = {
 
 winston.addColors(colors);
 
-// Nivel máximo a registrar según el entorno.
-const level = () => (config.isProduction ? 'info' : 'debug');
+// Nivel máximo a registrar (viene de config: LOG_LEVEL o default por entorno).
+const level = () => config.logLevel;
 
 // Formato: "2026-08-01 10:12:03 [info]  Mensaje"
 const baseFormat = winston.format.combine(

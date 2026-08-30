@@ -27,6 +27,7 @@ export const swaggerSpec = {
     }
   ],
   tags: [
+    { name: 'Health', description: 'Estado de la API (health check).' },
     { name: 'Users', description: 'Gestión de usuarios (clientes, repartidores, etc.).' },
     { name: 'Products', description: 'Gestión de productos y stock.' },
     { name: 'Orders', description: 'Consulta de pedidos.' },

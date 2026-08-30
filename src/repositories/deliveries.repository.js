@@ -10,6 +10,16 @@ export const deliveriesRepository = {
     return DeliveryModel.find(filter, DEFAULT_PROJECTION).lean();
   },
 
+  // Consulta paginada (evita traer la colección completa sin control).
+  paginate: async (filter = {}, { page = 1, limit = 10 } = {}) => {
+    const skip = (page - 1) * limit;
+    const [docs, total] = await Promise.all([
+      DeliveryModel.find(filter, DEFAULT_PROJECTION).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      DeliveryModel.countDocuments(filter)
+    ]);
+    return { docs, total, page, limit };
+  },
+
   getById: async (id) => {
     return DeliveryModel.findById(id, DEFAULT_PROJECTION).lean();
   },

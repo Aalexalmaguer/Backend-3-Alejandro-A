@@ -15,6 +15,16 @@ export const usersRepository = {
     return UserModel.find(filter, SAFE_PROJECTION).lean();
   },
 
+  // Consulta paginada (evita traer la colección completa sin control).
+  paginate: async (filter = {}, { page = 1, limit = 10 } = {}) => {
+    const skip = (page - 1) * limit;
+    const [docs, total] = await Promise.all([
+      UserModel.find(filter, SAFE_PROJECTION).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      UserModel.countDocuments(filter)
+    ]);
+    return { docs, total, page, limit };
+  },
+
   getById: async (id) => {
     return UserModel.findById(id, SAFE_PROJECTION).lean();
   },

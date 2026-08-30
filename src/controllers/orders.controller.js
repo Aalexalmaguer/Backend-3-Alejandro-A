@@ -1,4 +1,5 @@
 import { ordersService } from '../services/orders.service.js';
+import { resolvePageQuery } from '../utils/pagination.js';
 
 /**
  * Controller de Pedidos: única puerta de entrada HTTP.
@@ -6,8 +7,9 @@ import { ordersService } from '../services/orders.service.js';
 export const ordersController = {
   getOrders: async (req, res, next) => {
     try {
-      const orders = await ordersService.getOrders();
-      res.status(200).json({ status: 'success', payload: orders });
+      const { page, limit } = resolvePageQuery(req.query);
+      const { docs, pagination } = await ordersService.getOrders({ page, limit });
+      res.status(200).json({ status: 'success', payload: docs, pagination });
     } catch (error) {
       next(error);
     }

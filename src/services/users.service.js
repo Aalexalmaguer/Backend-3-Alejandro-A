@@ -1,6 +1,7 @@
 import { usersRepository } from '../repositories/users.repository.js';
 import { USER_ROLES, USER_ROLE_VALUES } from '../constants/index.js';
 import { createError } from '../utils/errors/index.js';
+import { buildPaginationMeta } from '../utils/pagination.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -10,8 +11,9 @@ import { logger } from '../config/logger.js';
  * las constantes, nunca contra strings sueltos.
  */
 export const usersService = {
-  getUsers: async () => {
-    return usersRepository.getAll();
+  getUsers: async ({ page, limit } = {}) => {
+    const result = await usersRepository.paginate({}, { page, limit });
+    return { docs: result.docs, pagination: buildPaginationMeta(result) };
   },
 
   getUserById: async (id) => {

@@ -1,6 +1,7 @@
 import { productsRepository } from '../repositories/products.repository.js';
 import { PRODUCT_STATUS } from '../constants/index.js';
 import { createError } from '../utils/errors/index.js';
+import { buildPaginationMeta } from '../utils/pagination.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -15,13 +16,11 @@ const resolveStatus = (stock) =>
   stock > 0 ? PRODUCT_STATUS.AVAILABLE : PRODUCT_STATUS.OUT_OF_STOCK;
 
 export const productsService = {
-  getProducts: async () => {
-    return productsRepository.getAll();
-  },
-
-  // Regla de negocio: solo se pueden enviar productos con stock disponible.
-  getAvailableProducts: async () => {
-    return productsRepository.getAll({ status: PRODUCT_STATUS.AVAILABLE });
+  // ?available=true filtra solo los productos con stock disponible.
+  getProducts: async ({ page, limit, available } = {}) => {
+    const filter = available ? { status: PRODUCT_STATUS.AVAILABLE } : {};
+    const result = await productsRepository.paginate(filter, { page, limit });
+    return { docs: result.docs, pagination: buildPaginationMeta(result) };
   },
 
   getProductById: async (id) => {

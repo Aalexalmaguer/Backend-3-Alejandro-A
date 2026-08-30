@@ -1,4 +1,5 @@
 import { usersService } from '../services/users.service.js';
+import { resolvePageQuery } from '../utils/pagination.js';
 
 /**
  * Controller de Usuarios: única puerta de entrada HTTP.
@@ -8,8 +9,9 @@ import { usersService } from '../services/users.service.js';
 export const usersController = {
   getUsers: async (req, res, next) => {
     try {
-      const users = await usersService.getUsers();
-      res.status(200).json({ status: 'success', payload: users });
+      const { page, limit } = resolvePageQuery(req.query);
+      const { docs, pagination } = await usersService.getUsers({ page, limit });
+      res.status(200).json({ status: 'success', payload: docs, pagination });
     } catch (error) {
       next(error);
     }

@@ -1,4 +1,5 @@
 import { productsService } from '../services/products.service.js';
+import { resolvePageQuery } from '../utils/pagination.js';
 
 /**
  * Controller de Productos: única puerta de entrada HTTP.
@@ -8,13 +9,15 @@ import { productsService } from '../services/products.service.js';
 export const productsController = {
   getProducts: async (req, res, next) => {
     try {
+      const { page, limit } = resolvePageQuery(req.query);
       // ?available=true devuelve solo los productos listos para enviar.
-      const products =
-        req.query.available === 'true'
-          ? await productsService.getAvailableProducts()
-          : await productsService.getProducts();
+      const { docs, pagination } = await productsService.getProducts({
+        page,
+        limit,
+        available: req.query.available === 'true'
+      });
 
-      res.status(200).json({ status: 'success', payload: products });
+      res.status(200).json({ status: 'success', payload: docs, pagination });
     } catch (error) {
       next(error);
     }

@@ -7,6 +7,7 @@ import {
   DELIVERY_PRIORITY_VALUES
 } from '../constants/index.js';
 import { createError } from '../utils/errors/index.js';
+import { buildPaginationMeta } from '../utils/pagination.js';
 import { logger } from '../config/logger.js';
 
 /**
@@ -15,8 +16,9 @@ import { logger } from '../config/logger.js';
  * calcula el total y controla los estados válidos del dominio.
  */
 export const ordersService = {
-  getOrders: async () => {
-    return ordersRepository.getAll();
+  getOrders: async ({ page, limit } = {}) => {
+    const result = await ordersRepository.paginate({}, { page, limit });
+    return { docs: result.docs, pagination: buildPaginationMeta(result) };
   },
 
   getOrderById: async (id) => {
