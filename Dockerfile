@@ -1,17 +1,27 @@
-# Imagen base de Node (LTS, liviana).
-FROM node:20-alpine
+# =========================================================================
+# Dockerfile multi-stage para ShipNow API
+# Etapa 1 (deps): instala solo las dependencias de producción.
+# Etapa 2 (runtime): imagen final liviana, solo con lo necesario para correr.
+# =========================================================================
 
-# Directorio de trabajo dentro del contenedor.
+# ---- Etapa 1: dependencias ----
+FROM node:20-alpine AS deps
 WORKDIR /app
-
-# Copiamos primero los manifiestos para aprovechar la caché de capas:
-# si no cambian, no se reinstalan las dependencias en cada build.
+# Copiamos primero los manifiestos para aprovechar la caché de capas.
 COPY package*.json ./
-
-# Instalamos SOLO dependencias de producción (sin mocha/supertest, etc.).
+# Instalación reproducible, sin dependencias de desarrollo (mocha, supertest, etc.).
 RUN npm ci --omit=dev
 
-# Copiamos el resto del proyecto (el .dockerignore excluye lo innecesario/sensible).
+# ---- Etapa 2: runtime ----
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# La imagen corre en modo producción por defecto.
+ENV NODE_ENV=production
+
+# Traemos las dependencias ya instaladas desde la etapa anterior.
+COPY --from=deps /app/node_modules ./node_modules
+# Copiamos el código de la app (el .dockerignore excluye lo innecesario/sensible).
 COPY . .
 
 # Puerto en el que escucha la API (debe coincidir con PORT).

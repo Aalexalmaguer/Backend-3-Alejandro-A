@@ -1,0 +1,46 @@
+# =========================================================================
+# docker-compose para ShipNow: levanta la API junto con una MongoDB.
+#
+#   docker compose up --build
+#
+# La API espera a que MongoDB esté "healthy" (healthcheck + depends_on),
+# así no arranca contra una base que todavía no está lista.
+# =========================================================================
+services:
+  mongo:
+    image: mongo:7
+    container_name: shipnow-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    # Healthcheck: la base se considera lista cuando responde al ping.
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build: .
+    container_name: shipnow-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      NODE_ENV: production
+      LOG_LEVEL: info
+      # La API se conecta a la base por el nombre del servicio "mongo".
+      MONGODB_URI: mongodb://mongo:27017/shipnow
+      # Los endpoints internos (/mocks, /logs) quedan deshabilitados en producción.
+      # Para probar la carga de datos de prueba dentro del contenedor, poné "true":
+      # ENABLE_INTERNAL_ENDPOINTS: "true"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+volumes:
+  mongo-data:

@@ -25,6 +25,7 @@ coverage
 # Docker
 Dockerfile
 .dockerignore
+docker-compose.yml
 
 # Sistema operativo / editor / temporales
 .DS_Store

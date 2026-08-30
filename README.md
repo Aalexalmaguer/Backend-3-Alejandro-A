@@ -25,7 +25,12 @@ las próximas entregas (manejo de errores, logger, documentación, testing y Doc
 >   de pedidos/entregas; solo se guardan metadatos en la base y los archivos van a
 >   `uploads/` (ignorada en git).
 > - **M8** — **performance, producción y Docker**: paginación en los listados,
->   config por entorno, health check, y contenerización con `Dockerfile` + `.dockerignore`.
+>   config por entorno, health check, y contenerización con `Dockerfile` multi-stage,
+>   `.dockerignore` y `docker-compose.yml` (API + MongoDB).
+
+Este repositorio es la **entrega final**: integra de forma coherente todo el
+recorrido — arquitectura por capas, mocks, manejo global de errores, logging,
+Swagger, testing funcional, carga de archivos, performance y Docker.
 
 ---
 
@@ -214,10 +219,13 @@ check y la documentación Swagger quedan siempre disponibles.
 
 ### Docker
 
-El proyecto incluye un `Dockerfile` (imagen `node:20-alpine`, instala solo
-dependencias de producción, expone el puerto `8080` y arranca con `npm start`) y
-un `.dockerignore` que evita copiar archivos innecesarios o sensibles a la imagen
+El proyecto incluye un `Dockerfile` **multi-stage** (etapa `deps` que instala solo
+las dependencias de producción + etapa `runtime` liviana; imagen base `node:20-alpine`,
+expone el puerto `8080`, arranca con `npm start` y tiene `HEALTHCHECK` a `/api/health`)
+y un `.dockerignore` que evita copiar archivos innecesarios o sensibles a la imagen
 (`node_modules`, `.env`, `.git`, `logs/`, `uploads/`, `test/`, `coverage`, temporales).
+
+**Opción A — imagen sola** (necesitás una MongoDB accesible vía `MONGODB_URI`):
 
 ```bash
 # 1. Construir la imagen
@@ -227,11 +235,28 @@ docker build -t shipnow-api .
 docker run -p 8080:8080 --env-file .env shipnow-api
 ```
 
+**Opción B — Docker Compose (recomendado): API + MongoDB juntas**
+
+El `docker-compose.yml` levanta la API **y** una instancia de MongoDB. La API
+espera a que la base esté *healthy* (healthcheck + `depends_on`), así no arranca
+contra una base que todavía no está lista. No necesitás `.env`: las variables ya
+vienen configuradas en el compose (la API se conecta a `mongodb://mongo:27017/shipnow`).
+
+```bash
+docker compose up --build      # levanta API + MongoDB
+docker compose down            # baja los servicios (agregá -v para borrar los datos)
+```
+
 Con el contenedor corriendo, podés probar:
 
 - Health check: `http://localhost:8080/api/health`
 - Swagger: `http://localhost:8080/api/docs`
 - Algún endpoint principal: `http://localhost:8080/api/users`
+
+> En Compose la API corre en `NODE_ENV=production`, por lo que los endpoints
+> internos (`/mocks`, `/logs`) quedan deshabilitados. Para cargar datos de prueba
+> dentro del contenedor, descomentá `ENABLE_INTERNAL_ENDPOINTS: "true"` en el
+> `docker-compose.yml`.
 
 > **Nota sobre `MONGODB_URI` en Docker:** si tu MongoDB corre en tu máquina host,
 > usá `host.docker.internal` (Mac/Windows) o la IP del host en la URI, o levantá
